@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="d9eb0334-4e06-49b2-82bc-34b4d00c1f77" name="Default" comment="" />
+    <list default="true" id="d9eb0334-4e06-49b2-82bc-34b4d00c1f77" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/../hedbanz-sockets/.idea/workspace.xml" afterPath="$PROJECT_DIR$/../hedbanz-sockets/.idea/workspace.xml" />
+    </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <ignored path="$PROJECT_DIR$/target/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -649,8 +651,16 @@
       <workItem from="1536135755001" duration="10153000" />
       <workItem from="1536224219287" duration="12977000" />
       <workItem from="1536317121482" duration="19530000" />
-      <workItem from="1536404607029" duration="12283000" />
+      <workItem from="1536404607029" duration="12396000" />
     </task>
+    <task id="LOCAL-00001" summary="Separate socket service for hedbanz">
+      <created>1536436122675</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1536436122675</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -686,7 +696,7 @@
     </history-entry>
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="240310000" />
+    <option name="totallyTimeSpent" value="240423000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
@@ -730,6 +740,10 @@
   </component>
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Separate socket service for hedbanz" />
+    <option name="LAST_COMMIT_MESSAGE" value="Separate socket service for hedbanz" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
