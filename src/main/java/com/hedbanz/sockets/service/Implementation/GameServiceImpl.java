@@ -64,7 +64,7 @@ public class GameServiceImpl implements GameService{
         if (securityToken == null)
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
 
-        return requestHandler.sendPatchAndGetResultData(SET_WORD_URI, wordDto, securityToken, SetWordDto.class);
+        return requestHandler.sendPutAndGetResultData(SET_WORD_URI, wordDto, securityToken, SetWordDto.class).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -76,7 +76,7 @@ public class GameServiceImpl implements GameService{
 
         return requestHandler.sendPostAndGetResultData(
                 String.format(START_GUESSING_URI, roomId), securityToken, PlayerGuessingDto.class
-        );
+        ).get();
     }
 
     @Override
@@ -89,9 +89,9 @@ public class GameServiceImpl implements GameService{
         if (securityToken == null)
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
 
-        return requestHandler.sendPostAndGetResultData(
+        return requestHandler.sendPutAndGetResultData(
                 ADD_QUESTION_URI, questionDto, securityToken, QuestionDto.class
-        );
+        ).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -107,9 +107,9 @@ public class GameServiceImpl implements GameService{
         if (securityToken == null)
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
 
-        return requestHandler.sendPostAndGetResultData(
+        return requestHandler.sendPutAndGetResultData(
                 ADD_VOTE_URI, questionDto, securityToken, QuestionDto.class
-        );
+        ).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -129,18 +129,18 @@ public class GameServiceImpl implements GameService{
 
         return requestHandler.sendPostAndGetResultData(
                 String.format(CHECK_QUESTIONER_WIN_URI, questionDto.getRoomId()), questionDto, securityToken, PlayerGuessingDto.class
-        );
+        ).orElseThrow(NullPointerException::new);
     }
 
     @Override
-    public PlayerGuessingDto isGameOverElseGetNextGuessingPlayer(Long roomId, String securityToken) {
+    public GameOverDto isGameOver(Long roomId, String securityToken) {
         if(roomId == null)
             throw ExceptionFactory.create(InputError.EMPTY_ROOM_ID);
         if (securityToken == null)
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
         return requestHandler.sendPostAndGetResultData(
-                String.format(CHECK_GAME_OVER_URI,roomId), securityToken, PlayerGuessingDto.class
-        );
+                String.format(CHECK_GAME_OVER_URI,roomId), securityToken, GameOverDto.class
+        ).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -151,7 +151,7 @@ public class GameServiceImpl implements GameService{
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
         return requestHandler.sendPostAndGetResultData(
                 String.format(RequestsURI.START_GAME_URI, roomId), securityToken, RoomDto.class
-        );
+        ).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -164,7 +164,7 @@ public class GameServiceImpl implements GameService{
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
         return requestHandler.sendPostAndGetResultData(
                 String.format(RESTART_GAME_URI, roomId, userId), securityToken, RoomDto.class
-        );
+        ).orElse(null);
     }
 
     @Override
@@ -179,19 +179,21 @@ public class GameServiceImpl implements GameService{
         SetWordDto[] setWordDtos = requestHandler.sendPostAndGetResultData(
                 String.format(GET_SET_WORD_DTOS_URI, roomId), playerDtoList,
                 securityToken, SetWordDto[].class
-        );
+        ).orElseThrow(NullPointerException::new);
         return Arrays.asList(setWordDtos);
     }
 
     @Override
-    public PlayerGuessingDto getNextGuessingPlayer(Long roomId, String securityToken) {
+    public PlayerGuessingDto getNextGuessingPlayer(Long roomId, QuestionDto currentQuestionDto, String securityToken) {
         if(roomId == null)
             throw ExceptionFactory.create(InputError.EMPTY_ROOM_ID);
         if (securityToken == null)
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
+        if(currentQuestionDto == null || currentQuestionDto.getAttempt() == null)
+            throw ExceptionFactory.create(InputError.EMPTY_QUESTION_ATTEMPT);
 
-        return requestHandler.sendGetAndGetResultData(
-                String.format(GET_NEXT_GUESSING_PLAYER, roomId), securityToken, PlayerGuessingDto.class
-        );
+        return requestHandler.sendPostAndGetResultData(
+                String.format(GET_NEXT_GUESSING_PLAYER, roomId), currentQuestionDto, securityToken, PlayerGuessingDto.class
+        ).orElseThrow(NullPointerException::new);
     }
 }

@@ -14,4 +14,8 @@ public interface RoomService {
     void sendWaitingForPlayersMessage(Long roomId, String securityToken);
 
     QuestionDto getLastQuestion(Long roomId, String securityToken);
+
+    PlayerDto getQuestioner(Long roomId, Long questionId, String securityToken);
+
+    void deleteEmptyQuestions(Long roomId, Long userId, String securityToken);
 }

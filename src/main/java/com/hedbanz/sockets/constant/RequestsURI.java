@@ -13,9 +13,9 @@ public class RequestsURI {
     public static final String START_GAME_URI = HOSTNAME + "/game/start/room/%d";
     public static final String RESTART_GAME_URI = HOSTNAME + "/game/restart/room/%d/user/%d";
     public static final String START_GUESSING_URI = HOSTNAME + "/game/start-guessing/room/%d";
-    public static final String SET_WORD_URI = HOSTNAME + "/game/player/set-word";
-    public static final String ADD_QUESTION_URI = HOSTNAME + "/game/player/add-question";
-    public static final String ADD_VOTE_URI = HOSTNAME + "/game/player/add-vote";
+    public static final String SET_WORD_URI = HOSTNAME + "/game/player/word";
+    public static final String ADD_QUESTION_URI = HOSTNAME + "/game/player/question";
+    public static final String ADD_VOTE_URI = HOSTNAME + "/game/player/vote";
     public static final String CHECK_QUESTIONER_WIN_URI = HOSTNAME + "/game/room/%d/check-questioner-win";
     public static final String CHECK_GAME_OVER_URI = HOSTNAME + "/game/room/%d/is-game-over";
     public static final String GET_NEXT_GUESSING_PLAYER = HOSTNAME + "/game/room/%d/next-player";
@@ -31,4 +31,8 @@ public class RequestsURI {
     public static final String GET_LAST_QUESTION = HOSTNAME + "/rooms/%d/messages/last-question";
     public static final String GET_ADVERTISE_TYPE = HOSTNAME + "/advertise/type";
     public static final String GET_ADVERTISE_RATE = HOSTNAME + "/advertise/rate";
+
+    public static final String SET_PLAYER_WIN_URI = HOSTNAME + "/game/room/%d/player-win";
+    public static final String GET_QUESTIONER_URI = HOSTNAME + "/rooms/%d/messages/question/%d/questioner";
+    public static final String DELETE_EMPTY_QUESTIONS = HOSTNAME + "/rooms/%d/messages/user/%d/empty-question";
 }

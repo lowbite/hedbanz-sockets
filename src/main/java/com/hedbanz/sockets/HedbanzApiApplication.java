@@ -16,8 +16,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.concurrent.Executor;
 
 @EnableAsync
 @SpringBootApplication
@@ -47,13 +50,13 @@ public class HedbanzApiApplication {
     }
 
     @Bean
-    @Qualifier("SimpleTemplate")
-    public RestTemplate restTemplate(){
+    @Qualifier("standardTemplate")
+    public RestTemplate standardTemplate(){
         return new RestTemplate();
     }
 
     @Bean
-    @Qualifier("PatchTemplate")
+    @Qualifier("patchTemplate")
     public RestTemplate patchRestTemplate(){
         HttpClient httpClient = HttpClientBuilder.create().build();
         return new RestTemplate(new HttpComponentsClientHttpRequestFactory(httpClient));

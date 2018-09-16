@@ -3,17 +3,21 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.hedbanz.sockets.constant.MessageType;
 import com.hedbanz.sockets.deserializer.QuestionDtoDeserializer;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
 @JsonDeserialize(using = QuestionDtoDeserializer.class)
 public class QuestionDto extends MessageDto{
     private Long questionId;
-    private List<PlayerDto> yesVoters;
-    private List<PlayerDto> noVoters;
-    private List<PlayerDto> winVoters;
+    private List<PlayerDto> yesVoters = new ArrayList<>();
+    private List<PlayerDto> noVoters = new ArrayList<>();
+    private List<PlayerDto> winVoters = new ArrayList<>();
     private Integer attempt;
     private Integer vote;
+
+    public QuestionDto() {
+    }
 
     private QuestionDto(Long questionId, Long clientMessageId, UserDto senderUser, Long roomId, String text,
                         Integer type, Date createDate, List<PlayerDto> yesVoters, List<PlayerDto> noVoters, List<PlayerDto> winVoters, Integer attempt, Integer vote, String securityToken) {
@@ -81,6 +85,18 @@ public class QuestionDto extends MessageDto{
 
     public void setWinVoters(List<PlayerDto> winVoters) {
         this.winVoters = winVoters;
+    }
+
+    @Override
+    public String toString() {
+        return "QuestionDto{" +
+                "questionId=" + questionId +
+                ", yesVoters=" + yesVoters +
+                ", noVoters=" + noVoters +
+                ", winVoters=" + winVoters +
+                ", attempt=" + attempt +
+                ", vote=" + vote +
+                '}';
     }
 
     public static class QuestionDTOBuilder {

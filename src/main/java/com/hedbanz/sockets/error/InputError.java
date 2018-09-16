@@ -33,7 +33,8 @@ public enum InputError {
     EMPTY_NO_VOTERS(30, ErrorMessages.EMPTY_NO_VOTERS),
     EMPTY_YES_VOTERS(31, ErrorMessages.EMPTY_YES_VOTERS),
     EMPTY_WIN_VOTERS(31, ErrorMessages.EMPTY_WIN_VOTERS),
-    EMPTY_PLAYERS_LIST(32, ErrorMessages.EMPTY_PLAYERS_LIST);
+    EMPTY_PLAYERS_LIST(32, ErrorMessages.EMPTY_PLAYERS_LIST),
+    EMPTY_QUESTION_ATTEMPT(33, ErrorMessages.EMPTY_QUESTION_ATTEMPT );
     private int errorCode;
     private String errorMessage;
     InputError(int errorCode, String errorMessage){

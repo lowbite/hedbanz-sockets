@@ -32,7 +32,7 @@ public class LoginAvailabilityEventHandler {
 
     private DataListener<LoginDto> onRecieved() {
         return (client, data, ackSender) -> {
-            LoginAnswerDto answerDto = requestHandler.sendPostAndGetResultData(CHECK_LOGIN_URI, data, LoginAnswerDto.class);
+            LoginAnswerDto answerDto = requestHandler.sendPostAndGetResultData(CHECK_LOGIN_URI, data, LoginAnswerDto.class).orElseThrow(NullPointerException::new);
             client.sendEvent(SERVER_CHECK_LOGIN, answerDto);
         };
     }

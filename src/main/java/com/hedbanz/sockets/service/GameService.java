@@ -19,7 +19,7 @@ public interface GameService {
 
     PlayerGuessingDto isQuestionerWin(QuestionDto questionDto, String securityToken);
 
-    PlayerGuessingDto isGameOverElseGetNextGuessingPlayer(Long roomId, String securityToken);
+    GameOverDto isGameOver(Long roomId, String securityToken);
 
     RoomDto startGame(Long roomId, String securityToken);
 
@@ -27,5 +27,5 @@ public interface GameService {
 
     List<SetWordDto> getSetWordDtos(Long roomId, Collection<PlayerDto> playerDtoList, String securityToken);
 
-    PlayerGuessingDto getNextGuessingPlayer(Long roomId, String securityToken);
+    PlayerGuessingDto getNextGuessingPlayer(Long roomId, QuestionDto currentQuestionDto, String securityToken);
 }

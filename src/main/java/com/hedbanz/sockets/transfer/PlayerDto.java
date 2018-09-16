@@ -140,6 +140,13 @@ public class PlayerDto {
         this.iconId = iconId;
     }
 
+    @Override
+    public String toString() {
+        return "PlayerDto{" +
+                "login='" + login + '\'' +
+                '}';
+    }
+
     public static class PlayerDTOBuilder {
         private Long id;
         private String login;

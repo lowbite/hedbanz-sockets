@@ -7,9 +7,9 @@ import com.corundumstudio.socketio.listener.ConnectListener;
 import com.corundumstudio.socketio.listener.DataListener;
 import com.corundumstudio.socketio.listener.DisconnectListener;
 import com.hedbanz.sockets.constant.*;
-import com.hedbanz.sockets.error.InputError;
 import com.hedbanz.sockets.error.NotFoundError;
 import com.hedbanz.sockets.error.RoomError;
+import com.hedbanz.sockets.error.UserError;
 import com.hedbanz.sockets.exception.ApiException;
 import com.hedbanz.sockets.exception.ExceptionFactory;
 import com.hedbanz.sockets.service.GameService;
@@ -23,10 +23,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import javax.xml.soap.Text;
 import java.util.*;
 
 import static com.hedbanz.sockets.constant.GameStatus.GUESSING_WORDS;
 import static com.hedbanz.sockets.constant.GameStatus.SETTING_WORDS;
+import static com.hedbanz.sockets.constant.GameStatus.WAITING_FOR_PLAYERS;
 import static com.hedbanz.sockets.constant.PlayerStatus.ACTIVE;
 import static com.hedbanz.sockets.constant.PlayerStatus.AFK;
 import static com.hedbanz.sockets.constant.SocketEvents.*;
@@ -70,12 +72,13 @@ public class RoomEventHandler {
     private DataListener<UserToRoomDto> restartGame() {
         return ((client, data, ackSender) -> {
             RoomDto roomDto = gameService.restartGame(data.getRoomId(), data.getUserId(), client.get(SECURITY_TOKEN_FIELD));
-            if (roomDto != null && roomDto.getCurrentPlayersNumber().equals(roomDto.getMaxPlayers()))
-                startGame(roomDto, client.get(SECURITY_TOKEN_FIELD));
-
-            if (!roomDto.getCurrentPlayersNumber().equals(roomDto.getMaxPlayers())) {
-                roomService.sendWaitingForPlayersMessage(roomDto.getId(), client.get(SECURITY_TOKEN_FIELD));
-                socketIONamespace.getRoomOperations(data.getRoomId().toString()).sendEvent(SERVER_WAITING_FOR_USERS, new UserToRoomDto());
+            if (roomDto != null) {
+                if (roomDto.getCurrentPlayersNumber().equals(roomDto.getMaxPlayers()))
+                    startGame(roomDto, client.get(SECURITY_TOKEN_FIELD));
+                else {
+                    roomService.sendWaitingForPlayersMessage(roomDto.getId(), client.get(SECURITY_TOKEN_FIELD));
+                    socketIONamespace.getRoomOperations(data.getRoomId().toString()).sendEvent(SERVER_WAITING_FOR_USERS, new UserToRoomDto());
+                }
             }
         });
     }
@@ -152,50 +155,64 @@ public class RoomEventHandler {
      */
     private DataListener<UserToRoomDto> leaveUserFromRoom() {
         return (client, data, ackSender) -> {
-            UserDto userDto = roomService.leaveUserFromRoom(data, client.get(SECURITY_TOKEN_FIELD));
+            String securityToken = TextUtils.isEmpty(client.get(SECURITY_TOKEN_FIELD)) ? data.getSecurityToken() : client.get(SECURITY_TOKEN_FIELD);
+            UserDto userDto = roomService.leaveUserFromRoom(data, securityToken);
             client.leaveRoom(String.valueOf(data.getRoomId()));
             log.info("User: " + data.getUserId() + " - left from room: " + data.getRoomId());
             socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
                     .sendEvent(LEFT_USER_EVENT, userDto);
             try {
-
-                RoomDto roomDto = roomService.getRoom(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
+                RoomDto roomDto = roomService.getRoom(data.getRoomId(), securityToken);
                 if (roomDto.getGameStatus().equals(GUESSING_WORDS.getCode())) {
-                    PlayerDto playerDto = playerService.getPlayer(data.getRoomId(), data.getUserId(), client.get(SECURITY_TOKEN_FIELD));
+                    List<PlayerDto> playerDtoList = playerService.getPlayersInRoom(data.getRoomId(), securityToken);
+                    QuestionDto lastQuestionDto = roomService.getLastQuestion(data.getRoomId(), securityToken);
+                    PlayerDto playerDto = playerService.getPlayer(data.getRoomId(), data.getUserId(), securityToken);
                     if (playerDto.getAttempt() != 0 && !playerDto.isWinner()) {
-                        PlayerGuessingDto nextGuessingPlayer = gameService.getNextGuessingPlayer(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
-                        socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                                .sendEvent(SERVER_USER_GUESSING_EVENT, nextGuessingPlayer);
-                    }
-                    QuestionDto lastQuestion = roomService.getLastQuestion(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
-                    PlayerGuessingDto playerGuessingDto = gameService.isQuestionerWin(lastQuestion, client.get(SECURITY_TOKEN_FIELD));
-                    if (playerGuessingDto.getPlayer() != null) {
-                        if (playerGuessingDto.getPlayer().isWinner()) {
-                            socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
-                                    .sendEvent(SERVER_USER_WIN_EVENT, playerGuessingDto.getPlayer());
-                            playerGuessingDto = gameService.isGameOverElseGetNextGuessingPlayer(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
-                            if (playerGuessingDto == null) {
-                                socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                                        .sendEvent(SERVER_GAME_OVER, new UserToRoomDto());
-                            } else {
-                                if (playerGuessingDto.getPlayer().getStatus() == AFK.getCode())
-                                    startPlayerAfkTimer(client);
-                                socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                                        .sendEvent(SERVER_USER_GUESSING_EVENT, playerGuessingDto);
-                            }
-                        } else {
-                            if (playerGuessingDto.getPlayer().getStatus() == AFK.getCode())
-                                startPlayerAfkTimer(client);
+                        PlayerGuessingDto nextGuessingPlayer = gameService.getNextGuessingPlayer(data.getRoomId(), lastQuestionDto, securityToken);
+                        if (nextGuessingPlayer != null) {
                             socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                                    .sendEvent(SERVER_USER_GUESSING_EVENT, playerGuessingDto);
+                                    .sendEvent(SERVER_USER_GUESSING_EVENT, nextGuessingPlayer);
+                            roomService.deleteEmptyQuestions(data.getRoomId(), data.getUserId(), securityToken);
+                            return;
                         }
                     }
+                    int playersNumber = getActivePlayersNumber(playerDtoList) - 1;
+                    playersNumber = playersNumber > 0 ? playersNumber : 1;
+                    if (lastQuestionDto.getWinVoters().size() / (playersNumber) >= 0.8) {
+                        PlayerDto winPlayer = playerService.setPlayerWin(lastQuestionDto, securityToken);
+                        socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
+                                .sendEvent(SERVER_USER_WIN_EVENT, winPlayer);
+                        GameOverDto gameOverDto = gameService.isGameOver(data.getRoomId(), securityToken);
+                        if (gameOverDto.isGameOver()) {
+                            socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
+                                    .sendEvent(SERVER_GAME_OVER, new UserToRoomDto());
+                        } else {
+                            PlayerGuessingDto nextGuessingPlayerDto = gameService.getNextGuessingPlayer(data.getRoomId(), lastQuestionDto, securityToken);
+                            if (nextGuessingPlayerDto.getPlayer().getStatus() == AFK.getCode())
+                                startPlayerAfkTimer(client);
+                            socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
+                                    .sendEvent(SERVER_USER_GUESSING_EVENT, nextGuessingPlayerDto);
+                        }
+                    } else {
+                        double yesNoVotersPercentage = (double) (lastQuestionDto.getNoVoters().size() + lastQuestionDto.getYesVoters().size())
+                                / (playersNumber);
+                        double allVotersPercentage = (double) (lastQuestionDto.getNoVoters().size() + lastQuestionDto.getYesVoters().size()
+                                + lastQuestionDto.getWinVoters().size()) / (playersNumber);
+                        if (yesNoVotersPercentage >= 0.8 || allVotersPercentage == 1) {
+                            PlayerGuessingDto nextGuessingPlayerDto = gameService.getNextGuessingPlayer(data.getRoomId(), lastQuestionDto, securityToken);
+                            if (nextGuessingPlayerDto.getPlayer().getStatus() == AFK.getCode())
+                                startPlayerAfkTimer(client);
+                            socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
+                                    .sendEvent(SERVER_USER_GUESSING_EVENT, nextGuessingPlayerDto);
+                        }
+                    }
+                    roomService.deleteEmptyQuestions(data.getRoomId(), data.getUserId(), securityToken);
                 } else if (roomDto.getGameStatus().equals(SETTING_WORDS.getCode())) {
                     socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId())).sendEvent(SERVER_UPDATE_USERS_INFO, roomDto);
                     tryToStartGuessing(client, data.getRoomId());
                 }
-            }catch (ApiException e){
-                if(e.getCode() != NotFoundError.NO_SUCH_ROOM.getErrorCode()){
+            } catch (ApiException e) {
+                if (e.getCode() != NotFoundError.NO_SUCH_ROOM.getErrorCode()) {
                     throw e;
                 }
             }
@@ -204,10 +221,18 @@ public class RoomEventHandler {
 
     private void tryToStartGuessing(SocketIOClient client, Long roomId) {
         try {
-            PlayerGuessingDto playerGuessingDto = gameService.startGuessingAndGettingGuessingPlayer(roomId, client.get(SECURITY_TOKEN_FIELD));
-            if (playerGuessingDto != null) {
-                socketIONamespace.getRoomOperations(String.valueOf(roomId)).sendEvent(SERVER_USER_GUESSING_EVENT, playerGuessingDto);
-                log.info("Players start guessing: " + playerGuessingDto.getPlayer().getId());
+            List<PlayerDto> playersDtos = playerService.getPlayersInRoom(roomId, client.get(SECURITY_TOKEN_FIELD));
+            boolean gameIsReady = true;
+            for (PlayerDto player : playersDtos) {
+                if (TextUtils.isEmpty(player.getWord()) && player.getStatus() != PlayerStatus.LEFT.getCode())
+                    gameIsReady = false;
+            }
+            if (gameIsReady) {
+                PlayerGuessingDto playerGuessingDto = gameService.startGuessingAndGettingGuessingPlayer(roomId, client.get(SECURITY_TOKEN_FIELD));
+                if (playerGuessingDto != null) {
+                    socketIONamespace.getRoomOperations(String.valueOf(roomId)).sendEvent(SERVER_USER_GUESSING_EVENT, playerGuessingDto);
+                    log.info("Players start guessing: " + playerGuessingDto.getPlayer().getId());
+                }
             }
         } catch (ApiException e) {
             if (e.getCode() != RoomError.GAME_ALREADY_STARTED.getErrorCode())
@@ -227,7 +252,6 @@ public class RoomEventHandler {
             client.set(USER_ID_FIELD, data.getUserId());
             client.set(ROOM_ID_FIELD, data.getRoomId());
             client.set(SECURITY_TOKEN_FIELD, data.getSecurityToken());
-
             RoomDto roomDto = roomService.joinUserToRoom(data, data.getSecurityToken());
             client.sendEvent(ROOM_INFO_EVENT, roomDto);
             client.joinRoom(String.valueOf(roomDto.getId()));
@@ -246,7 +270,8 @@ public class RoomEventHandler {
             log.info("Clients in the room " + roomDto.getId() + " - " + clientsNumber);
 
             //Start game
-            if (roomDto.getMaxPlayers().equals(roomDto.getPlayers().size()))
+            if ((roomDto.getGameStatus().equals(WAITING_FOR_PLAYERS.getCode())) &&
+                    (roomDto.getMaxPlayers().equals(roomDto.getPlayers().size())))
                 startGame(roomDto, client.get(SECURITY_TOKEN_FIELD));
         };
     }
@@ -377,45 +402,87 @@ public class RoomEventHandler {
     private DataListener<QuestionDto> addUserQuestion() {
         return (client, data, ackSender) -> {
             log.info("Client: " + client.getHandshakeData().getAddress() + "\nUser: " + client.get(USER_ID_FIELD) + " asking question: " + data.getText());
-            QuestionDto resultMessage = gameService.addQuestion(data, client.get(SECURITY_TOKEN_FIELD));
-            resultMessage.setClientMessageId(data.getClientMessageId());
-            socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
-                    .sendEvent(SERVER_USER_ASKING_EVENT, resultMessage);
+            QuestionDto lastQuestion = roomService.getLastQuestion(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
+            if (lastQuestion.getQuestionId().equals(data.getQuestionId())) {
+                QuestionDto resultMessage = gameService.addQuestion(data, client.get(SECURITY_TOKEN_FIELD));
+                resultMessage.setClientMessageId(data.getClientMessageId());
+                socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
+                        .sendEvent(SERVER_USER_ASKING_EVENT, resultMessage);
+            }
         };
     }
 
     private DataListener<QuestionDto> addVoteToQuestion() {
         return (client, data, ackSender) -> {
             data.setSecurityToken(null);
+            log.info("add vote input: " + data.toString());
+
             QuestionDto questionDto = gameService.addVote(data, client.get(SECURITY_TOKEN_FIELD));
             socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId())).sendEvent(SERVER_USER_ANSWERING_EVENT, questionDto);
+            log.info(questionDto.toString());
 
-            PlayerGuessingDto playerGuessingDto = gameService.isQuestionerWin(questionDto, client.get(SECURITY_TOKEN_FIELD));
-            if (playerGuessingDto.getPlayer() != null) {
-                if (playerGuessingDto.getPlayer().isWinner()) {
+            List<PlayerDto> playerDtoList = playerService.getPlayersInRoom(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
+            QuestionDto lastQuestionDto = roomService.getLastQuestion(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
+            int playersNumber = getActivePlayersNumber(playerDtoList) - 1;
+            playersNumber = playersNumber > 0 ? playersNumber : 1;
+            try {
+                if (questionDto.getWinVoters().size() / (playersNumber) >= 0.8) {
+                    PlayerDto winPlayer = playerService.setPlayerWin(questionDto, client.get(SECURITY_TOKEN_FIELD));
                     socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
-                            .sendEvent(SERVER_USER_WIN_EVENT, playerGuessingDto.getPlayer());
-                    QuestionDto lastQuestion = roomService.getLastQuestion(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
-                    if (lastQuestion.getQuestionId().equals(questionDto.getQuestionId())) {
-                        playerGuessingDto = gameService.isGameOverElseGetNextGuessingPlayer(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
-                        if (playerGuessingDto == null) {
-                            socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                                    .sendEvent(SERVER_GAME_OVER, new UserToRoomDto());
-                        } else {
-                            if (playerGuessingDto.getPlayer().getStatus() == AFK.getCode())
+                            .sendEvent(SERVER_USER_WIN_EVENT, winPlayer);
+                    GameOverDto gameOverDto = gameService.isGameOver(data.getRoomId(), client.get(SECURITY_TOKEN_FIELD));
+                    if (gameOverDto.isGameOver()) {
+                        socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
+                                .sendEvent(SERVER_GAME_OVER, new UserToRoomDto());
+                    } else {
+                        PlayerDto questioner = roomService.getQuestioner(
+                                data.getRoomId(), questionDto.getQuestionId(), client.get(SECURITY_TOKEN_FIELD)
+                        );
+                        PlayerDto lastQuestioner = roomService.getQuestioner(
+                                data.getRoomId(), lastQuestionDto.getQuestionId(), client.get(SECURITY_TOKEN_FIELD)
+                        );
+                        if (questioner.getId().equals(lastQuestioner.getId())) {
+                            PlayerGuessingDto nextGuessingPlayerDto = gameService.getNextGuessingPlayer(
+                                    data.getRoomId(), lastQuestionDto, client.get(SECURITY_TOKEN_FIELD)
+                            );
+                            if (nextGuessingPlayerDto.getPlayer().getStatus() == AFK.getCode())
                                 startPlayerAfkTimer(client);
                             socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                                    .sendEvent(SERVER_USER_GUESSING_EVENT, playerGuessingDto);
+                                    .sendEvent(SERVER_USER_GUESSING_EVENT, nextGuessingPlayerDto);
                         }
                     }
-                } else {
-                    if (playerGuessingDto.getPlayer().getStatus() == AFK.getCode())
-                        startPlayerAfkTimer(client);
-                    socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
-                            .sendEvent(SERVER_USER_GUESSING_EVENT, playerGuessingDto);
+                } else if (lastQuestionDto.getQuestionId().equals(questionDto.getQuestionId())) {
+                    double yesNoVotersPercentage = (double) (
+                            questionDto.getNoVoters().size() + questionDto.getYesVoters().size()
+                    ) / (playersNumber);
+                    double allVotersPercentage = (double) (
+                            questionDto.getNoVoters().size() + questionDto.getYesVoters().size() + questionDto.getWinVoters().size()
+                    ) / (playersNumber);
+                    if (yesNoVotersPercentage >= 0.8 || allVotersPercentage == 1) {
+                        PlayerGuessingDto nextGuessingPlayerDto = gameService.getNextGuessingPlayer(
+                                data.getRoomId(), questionDto, client.get(SECURITY_TOKEN_FIELD)
+                        );
+                        if (nextGuessingPlayerDto.getPlayer().getStatus() == AFK.getCode())
+                            startPlayerAfkTimer(client);
+                        socketIONamespace.getRoomOperations(String.valueOf(data.getRoomId()))
+                                .sendEvent(SERVER_USER_GUESSING_EVENT, nextGuessingPlayerDto);
+                    }
                 }
+            } catch (ApiException e) {
+                if (e.getCode() != RoomError.ALREADY_SENT_NEXT_PLAYER.getErrorCode())
+                    throw e;
             }
         };
+    }
+
+
+    private Integer getActivePlayersNumber(List<PlayerDto> players) {
+        int activePlayersNumber = 0;
+        for (PlayerDto player : players) {
+            if (player.getStatus() != PlayerStatus.LEFT.getCode())
+                activePlayersNumber++;
+        }
+        return activePlayersNumber;
     }
 
     private DisconnectListener onDisconnected() {

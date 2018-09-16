@@ -17,11 +17,11 @@ public class AdvertiseServiceImpl implements AdvertiseService {
 
     @Override
     public Integer getAdvertiseRate() {
-        return requestHandler.sendGetAndGetResultData(RequestsURI.GET_ADVERTISE_RATE, null, Integer.class);
+        return requestHandler.sendGetAndGetResultData(RequestsURI.GET_ADVERTISE_RATE, null, Integer.class).orElseThrow(NullPointerException::new);
     }
 
     @Override
     public Integer getAdvertiseType() {
-        return requestHandler.sendGetAndGetResultData(RequestsURI.GET_ADVERTISE_TYPE, null, Integer.class);
+        return requestHandler.sendGetAndGetResultData(RequestsURI.GET_ADVERTISE_TYPE, null, Integer.class).orElseThrow(NullPointerException::new);
     }
 }

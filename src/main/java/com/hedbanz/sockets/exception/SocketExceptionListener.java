@@ -7,6 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 public class SocketExceptionListener implements ExceptionListener {
@@ -16,15 +17,19 @@ public class SocketExceptionListener implements ExceptionListener {
     public void onEventException(Exception e, List<Object> list, SocketIOClient socketIOClient) {
         if (e instanceof ApiException) {
             socketIOClient.sendEvent("server-error", new CustomError(((ApiException) e).getCode(), e.getMessage()));
-            log.error("APIException" + e.getMessage());
+            log.error("APIException: " + e.getMessage());
         } else if (e instanceof InputException) {
             socketIOClient.sendEvent("server-error", new CustomError(((InputException) e).getCode(), e.getMessage()));
-            log.error("Input Exception" + e.getMessage());
+            log.error("Input Exception: " + e.getMessage());
+        } else if (e instanceof NullPointerException) {
+            log.error("Null Exception: " + e.getMessage());
+            log.error("Trace" + Arrays.toString(e.getStackTrace()));
         } else {
             socketIOClient.sendEvent("server-error", new CustomError(500, e.getMessage()));
-            log.error("Unidentified exception" + e.getMessage());
+            log.error("Unidentified exception: " + e.getMessage());
         }
     }
+
 
     @Override
     public void onDisconnectException(Exception e, SocketIOClient socketIOClient) {

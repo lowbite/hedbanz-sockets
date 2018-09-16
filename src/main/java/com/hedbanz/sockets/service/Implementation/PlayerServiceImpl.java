@@ -4,12 +4,12 @@ import com.hedbanz.sockets.error.InputError;
 import com.hedbanz.sockets.exception.ExceptionFactory;
 import com.hedbanz.sockets.service.PlayerService;
 import com.hedbanz.sockets.transfer.PlayerDto;
+import com.hedbanz.sockets.transfer.QuestionDto;
 import com.hedbanz.sockets.transfer.UserToRoomDto;
 import com.hedbanz.sockets.util.RequestHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -36,7 +36,7 @@ public class PlayerServiceImpl implements PlayerService {
         return requestHandler.sendPatchAndGetResultData(
                 String.format(PLAYER_RECONNECT_URI, userToRoomDto.getUserId(), userToRoomDto.getRoomId()),
                 securityToken, PlayerDto.class
-        );
+        ).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -49,7 +49,7 @@ public class PlayerServiceImpl implements PlayerService {
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
         return requestHandler.sendPostAndGetResultData(
                 String.format(PLAYER_DISCONNECT_URI, userToRoomDto.getUserId(), userToRoomDto.getRoomId()),
-                securityToken, PlayerDto.class);
+                securityToken, PlayerDto.class).orElseThrow(NullPointerException::new);
     }
 
     @Override
@@ -61,7 +61,7 @@ public class PlayerServiceImpl implements PlayerService {
 
         PlayerDto[] playerDtos = requestHandler.sendGetAndGetResultData(
                 String.format(GET_PLAYERS_URI, roomId), securityToken, PlayerDto[].class
-        );
+        ).orElseThrow(NullPointerException::new);
         return Arrays.asList(playerDtos);
     }
 
@@ -75,6 +75,17 @@ public class PlayerServiceImpl implements PlayerService {
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
         return  requestHandler.sendGetAndGetResultData(
                 String.format(GET_PLAYER_URI, roomId, userId), securityToken, PlayerDto.class
-        );
+        ).orElseThrow(NullPointerException::new);
+    }
+
+    @Override
+    public PlayerDto setPlayerWin(QuestionDto questionDto, String securityToken) {
+        if (questionDto.getQuestionId() == null)
+            throw ExceptionFactory.create(InputError.EMPTY_QUESTION_ID);
+        if (securityToken == null)
+            throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
+        return requestHandler.sendPostAndGetResultData(
+                String.format(SET_PLAYER_WIN_URI, questionDto.getRoomId()), questionDto, securityToken, PlayerDto.class
+        ).orElseThrow(NullPointerException::new);
     }
 }
