@@ -40,7 +40,7 @@ public class RoomEventHandler {
     private static final String USER_ID_FIELD = "userId";
     private static final String ROOM_ID_FIELD = "roomId";
     private static final String SECURITY_TOKEN_FIELD = "securityToken";
-
+    private final double PASS_POLL_PERCENT_VALUE = 0.8;
 
     private final GameService gameService;
     private final RoomService roomService;
@@ -178,7 +178,7 @@ public class RoomEventHandler {
                     }
                     int playersNumber = getActivePlayersNumber(playerDtoList) - 1;
                     playersNumber = playersNumber > 0 ? playersNumber : 1;
-                    if (lastQuestionDto.getWinVoters().size() / (playersNumber) >= 0.8) {
+                    if (lastQuestionDto.getWinVoters().size() / (playersNumber) >= PASS_POLL_PERCENT_VALUE) {
                         PlayerDto winPlayer = playerService.setPlayerWin(lastQuestionDto, securityToken);
                         socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
                                 .sendEvent(SERVER_USER_WIN_EVENT, winPlayer);
@@ -198,7 +198,7 @@ public class RoomEventHandler {
                                 / (playersNumber);
                         double allVotersPercentage = (double) (lastQuestionDto.getNoVoters().size() + lastQuestionDto.getYesVoters().size()
                                 + lastQuestionDto.getWinVoters().size()) / (playersNumber);
-                        if (yesNoVotersPercentage >= 0.8 || allVotersPercentage == 1) {
+                        if (yesNoVotersPercentage >= PASS_POLL_PERCENT_VALUE || allVotersPercentage == 1) {
                             PlayerGuessingDto nextGuessingPlayerDto = gameService.getNextGuessingPlayer(data.getRoomId(), lastQuestionDto, securityToken);
                             if (nextGuessingPlayerDto.getPlayer().getStatus() == AFK.getCode())
                                 startPlayerAfkTimer(client);
@@ -426,7 +426,7 @@ public class RoomEventHandler {
             int playersNumber = getActivePlayersNumber(playerDtoList) - 1;
             playersNumber = playersNumber > 0 ? playersNumber : 1;
             try {
-                if (questionDto.getWinVoters().size() / (playersNumber) >= 0.8) {
+                if (questionDto.getWinVoters().size() / (playersNumber) >= PASS_POLL_PERCENT_VALUE) {
                     PlayerDto winPlayer = playerService.setPlayerWin(questionDto, client.get(SECURITY_TOKEN_FIELD));
                     socketIONamespace.getRoomOperations(String.valueOf((Long) client.get(ROOM_ID_FIELD)))
                             .sendEvent(SERVER_USER_WIN_EVENT, winPlayer);
@@ -458,7 +458,7 @@ public class RoomEventHandler {
                     double allVotersPercentage = (double) (
                             questionDto.getNoVoters().size() + questionDto.getYesVoters().size() + questionDto.getWinVoters().size()
                     ) / (playersNumber);
-                    if (yesNoVotersPercentage >= 0.8 || allVotersPercentage == 1) {
+                    if (yesNoVotersPercentage >= PASS_POLL_PERCENT_VALUE || allVotersPercentage == 1) {
                         PlayerGuessingDto nextGuessingPlayerDto = gameService.getNextGuessingPlayer(
                                 data.getRoomId(), questionDto, client.get(SECURITY_TOKEN_FIELD)
                         );
