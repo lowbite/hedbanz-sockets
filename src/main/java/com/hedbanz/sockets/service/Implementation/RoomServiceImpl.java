@@ -70,7 +70,7 @@ public class RoomServiceImpl implements RoomService {
             throw ExceptionFactory.create(InputError.EMPTY_SECURITY_TOKEN);
 
         return requestHandler.sendPutAndGetResultData(
-                ADD_USER_MESSAGE_URI, messageDto, securityToken, MessageDto.class
+                String.format(ADD_USER_MESSAGE_URI, messageDto.getRoomId()), messageDto, securityToken, MessageDto.class
         ).orElseThrow(NullPointerException::new);
     }
 

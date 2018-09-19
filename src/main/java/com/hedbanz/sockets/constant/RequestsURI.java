@@ -20,7 +20,7 @@ public class RequestsURI {
     public static final String CHECK_GAME_OVER_URI = HOSTNAME + "/game/room/%d/is-game-over";
     public static final String GET_NEXT_GUESSING_PLAYER = HOSTNAME + "/game/room/%d/next-player";
     public static final String GET_SET_WORD_DTOS_URI = HOSTNAME + "/rooms/%d/events/set-word-entity";
-    public static final String ADD_USER_MESSAGE_URI = HOSTNAME + "/rooms/messages/add";
+    public static final String ADD_USER_MESSAGE_URI = HOSTNAME + "/rooms/%d/messages/add";
     public static final String GET_USER_URI = HOSTNAME + "/user/%d";
     public static final String FCM_PUSH_AFK_WARNING_URI = HOSTNAME + "/fcm/user/%d/send/afk-warning";
     public static final String FCM_PUSH_USER_KICKED_URI = HOSTNAME + "/fcm/user/%d/send/kicked";
